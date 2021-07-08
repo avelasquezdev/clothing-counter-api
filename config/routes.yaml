@@ -1,0 +1,23 @@
+login_check:
+  path:     /login_check
+  methods:  [POST]
+
+register:
+  path: ['/register']
+  methods:  ['POST']
+  controller: App\Controller\SecurityController::register
+
+
+login_google:
+  path:     /login/google
+  methods: [POST]
+  controller: App\Controller\SecurityController::googleLogin
+
+login_facebook:
+  path:     /login/facebook
+  methods: [POST]
+  controller: App\Controller\SecurityController::facebookLogin  
+
+gesdinet_jwt_refresh_token:
+  path:     '/token/refresh'
+  defaults: { _controller: gesdinet.jwtrefreshtoken::refresh }
