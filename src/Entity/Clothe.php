@@ -2,13 +2,17 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\Core\Annotation\ApiProperty;
 use App\Repository\ClotheRepository;
+use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 
 /**
  * @ApiResource(
@@ -25,6 +29,12 @@ use Symfony\Component\Serializer\Annotation\Groups;
  *         "delete"={"security"="is_granted('ROLE_ADMIN')"},
  *         "put"={"security"="is_granted('ROLE_ADMIN')"}
  *     }
+ * )
+ * @ApiFilter(
+ *     SearchFilter::class, properties={"id": "exact", "popularity": "exact", "categories.name": "exact"}
+ * )
+ * @ApiFilter(
+ *     RangeFilter::class, properties={"price"}
  * )
  * @ORM\Entity(repositoryClass=ClotheRepository::class)
  * @ORM\HasLifecycleCallbacks
@@ -71,16 +81,19 @@ class Clothe
      * 
      * @Groups({"clothe"})
      */
-    private $impacts;
+    private $impacts = 0;
 
     /**
      * @ORM\Column(type="boolean")
      * 
+     * @Groups({"clothe"})
      */
     private $isRecommended;
 
     /**
      * @ORM\ManyToMany(targetEntity=Category::class, mappedBy="clothes")
+     * 
+     * @Groups({"clothe"})
      */
     private $categories;
 
@@ -120,6 +133,11 @@ class Clothe
      */
     private $createdBy;
 
+    /**
+     * @Groups({"clothe"})
+     */
+    public $percentage;
+
     public function __construct()
     {
         $this->categories = new ArrayCollection();
@@ -135,6 +153,9 @@ class Clothe
     {
         $this->createdAt = new \DateTimeImmutable('now');
         $this->updatedAt = $this->createdAt;
+        if ($this->isRecommended) {
+            $this->popularity = 'Tendencias';
+        }
     }
 
     /**
@@ -289,4 +310,20 @@ class Clothe
 
         return $this;
     }
+
+    public function getcreatedAt(): String
+    {
+        return $this->createdAt->format('Y-m-d H:i:s');
+    }
+
+    public function getPercentage(): Float
+    {
+        $percentage = 0;
+        if ($this->getIsRecommended()) {
+            $percentage+=25;
+            $percentage+=($this->getImpacts()*75/100);
+        }
+        return $percentage;
+    }
+
 }

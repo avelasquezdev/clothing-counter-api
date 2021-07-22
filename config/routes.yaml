@@ -1,3 +1,8 @@
+clothes_add_impact:
+  path: '/clothes/{clotheId}/add_impact'
+  methods:  [POST]
+  controller: App\Controller\ClotheController::addImpact
+
 login_check:
   path:     /login_check
   methods:  [POST]
@@ -6,7 +11,6 @@ register:
   path: ['/register']
   methods:  ['POST']
   controller: App\Controller\SecurityController::register
-
 
 login_google:
   path:     /login/google

@@ -35,6 +35,11 @@ security:
             stateless: true
             anonymous: true
 
+        clothes_add_impact:
+            pattern: ^/clothes/{clotheId}/add_impact
+            security: false
+            stateless: false
+
         register:
             pattern: ^/register
             stateless: true
