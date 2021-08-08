@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use ApiPlatform\Core\Bridge\Symfony\Validator\Exception\ValidationException;
 use App\Entity\User;
+use App\Entity\UserProfile;
 use App\Repository\UserRepository;
 use Facebook\Exceptions\FacebookResponseException;
 use Facebook\Exceptions\FacebookSDKException;
@@ -75,12 +76,14 @@ class SecurityController extends AbstractController
         string $email,
         string $username,
         string $role,
-        string $password = null
+        string $password = null,
+        UserProfile $profile
     ): void {
         $user->setUsername($username);
         $user->setEmail($email);
         $user->setRoles([$role]);
         $user->setPassword($password ?: md5(uniqid()));
+        $user->setUserProfile($profile);
     }
 
     private function save($user)
@@ -198,7 +201,8 @@ class SecurityController extends AbstractController
                         str_replace('ROLE_', '', implode(', ', $roles)))], 401);
             } else {
                 $user = new User();
-                $this->setUserRegistrationInfo($user, $body['email'], $body['username'], $body['roles'], $body['password']);
+                $userProfile = new UserProfile();
+                $this->setUserRegistrationInfo($user, $body['email'], $body['username'], $body['roles'], $body['password'], $userProfile);
             }
 
             $this->save($user);

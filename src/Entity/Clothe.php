@@ -13,6 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\OrderFilter;
 
 /**
  * @ApiResource(
@@ -31,10 +33,16 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
  *     }
  * )
  * @ApiFilter(
- *     SearchFilter::class, properties={"id": "exact", "popularity": "exact", "categories.name": "exact"}
+ *     SearchFilter::class, properties={"id": "exact", "popularity": "exact", "categories.name": "exact", "sizes": "partial", "colors": "partial", "brand": "exact", "title": "partial"}
  * )
  * @ApiFilter(
  *     RangeFilter::class, properties={"price"}
+ * )
+ * @ApiFilter(
+ *     BooleanFilter::class, properties={"isAvailable"}
+ * )
+ * @ApiFilter(
+ *     OrderFilter::class, properties={"price", "popularity", "createdAt"}, arguments={"orderParameterName"="order"}
  * )
  * @ORM\Entity(repositoryClass=ClotheRepository::class)
  * @ORM\HasLifecycleCallbacks
@@ -63,7 +71,7 @@ class Clothe
     private $description;
 
     /**
-     * @ORM\Column(type="string", length=25)
+     * @ORM\Column(type="float")
      * 
      * @Groups({"clothe"})
      */
@@ -98,11 +106,6 @@ class Clothe
     private $categories;
 
     /**
-     * @ORM\ManyToMany(targetEntity=User::class, mappedBy="favoriteClothes")
-     */
-    private $users;
-
-    /**
      * @var MediaObject|null
      *
      * @ORM\ManyToOne(targetEntity=MediaObject::class)
@@ -130,6 +133,7 @@ class Clothe
     /**
      * @ORM\ManyToOne(targetEntity=User::class, inversedBy="myClothes")
      * @ORM\JoinColumn(nullable=false)
+     * @Groups({"clothe"})
      */
     private $createdBy;
 
@@ -138,10 +142,47 @@ class Clothe
      */
     public $percentage;
 
+    /**
+     * @ORM\Column(type="string", length=255)
+     * @Groups({"clothe"})
+     */
+    private $link;
+
+    /**
+     * @ORM\Column(type="array")
+     * @Groups({"clothe"})
+     */
+    private $sizes = [];
+
+    /**
+     * @ORM\Column(type="string", length=255)
+     * @Groups({"clothe"})
+     */
+    private $brand;
+
+    /**
+     * @ORM\Column(type="array")
+     * @Groups({"clothe"})
+     */
+    private $colors = [];
+
+    /**
+     * @ORM\ManyToMany(targetEntity=UserProfile::class, inversedBy="favs")
+     */
+    private $userProfileFavs;
+
+    /**
+     * @ORM\Column(type="boolean")
+     * 
+     * @Groups({"clothe"})
+     */
+    private $isAvailable = true;
+
     public function __construct()
     {
         $this->categories = new ArrayCollection();
-        $this->users = new ArrayCollection();
+        $this->userProfiles = new ArrayCollection();
+        $this->userProfileFavs = new ArrayCollection();
     }
 
     /**
@@ -153,9 +194,7 @@ class Clothe
     {
         $this->createdAt = new \DateTimeImmutable('now');
         $this->updatedAt = $this->createdAt;
-        if ($this->isRecommended) {
-            $this->popularity = 'Tendencias';
-        }
+        $this->popularity = 'Tendencias';
     }
 
     /**
@@ -166,6 +205,15 @@ class Clothe
     public function onPreUpdate()
     {
         $this->updatedAt = new \DateTimeImmutable('now');
+        if ($this->getPercentage() < 25) {
+            $this->popularity = '4';
+        } else if ($this->getPercentage() < 50) {
+            $this->popularity = '3';
+        } else if ($this->getPercentage() < 75) {
+            $this->popularity = '2';
+        } else {
+            $this->popularity = '1';
+        }
     }
 
     public function getId(): ?int
@@ -197,12 +245,12 @@ class Clothe
         return $this;
     }
 
-    public function getPrice(): ?string
+    public function getPrice(): ?float
     {
         return $this->price;
     }
 
-    public function setPrice(string $price): self
+    public function setPrice(float $price): self
     {
         $this->price = $price;
 
@@ -272,33 +320,6 @@ class Clothe
         return $this;
     }
 
-    /**
-     * @return Collection|User[]
-     */
-    public function getUsers(): Collection
-    {
-        return $this->users;
-    }
-
-    public function addUser(User $user): self
-    {
-        if (!$this->users->contains($user)) {
-            $this->users[] = $user;
-            $user->addFavoriteClothes($this);
-        }
-
-        return $this;
-    }
-
-    public function removeUser(User $user): self
-    {
-        if ($this->users->removeElement($user)) {
-            $user->removeFavoriteClothes($this);
-        }
-
-        return $this;
-    }
-
     public function getCreatedBy(): ?User
     {
         return $this->createdBy;
@@ -313,17 +334,111 @@ class Clothe
 
     public function getcreatedAt(): String
     {
-        return $this->createdAt->format('Y-m-d H:i:s');
+        return $this->createdAt->format('d-m-Y H:i:s');
     }
 
     public function getPercentage(): Float
     {
         $percentage = 0;
-        if ($this->getIsRecommended()) {
-            $percentage+=25;
-            $percentage+=($this->getImpacts()*75/100);
+        $this->getIsRecommended() ? $percentage+=35 : $percentage+=20;
+        if ($this->getImpacts() > 0 && $this->getImpacts() <= 5) {
+            $percentage+=20;
+        } else if ($this->getImpacts() > 5 && $this->getImpacts() <= 10) {
+            $percentage+=35;
+        } else if ($this->getImpacts() > 10) {
+            $percentage+=50;
+        }
+        if (count($this->getUserProfileFavs()) > 0 && count($this->getUserProfileFavs()) <= 2) {
+            $percentage+=5;
+        } else if (count($this->getUserProfileFavs()) > 2 && count($this->getUserProfileFavs()) <= 4) {
+            $percentage+=10;
+        } else if (count($this->getUserProfileFavs()) > 4) {
+            $percentage+=15;
         }
         return $percentage;
     }
 
+    public function getLink(): ?string
+    {
+        return $this->link;
+    }
+
+    public function setLink(string $link): self
+    {
+        $this->link = $link;
+
+        return $this;
+    }
+
+    public function getSizes(): ?array
+    {
+        return $this->sizes;
+    }
+
+    public function setSizes(array $sizes): self
+    {
+        $this->sizes = $sizes;
+
+        return $this;
+    }
+
+    public function getBrand(): ?string
+    {
+        return $this->brand;
+    }
+
+    public function setBrand(string $brand): self
+    {
+        $this->brand = $brand;
+
+        return $this;
+    }
+
+    public function getColors(): ?array
+    {
+        return $this->colors;
+    }
+
+    public function setColors(array $colors): self
+    {
+        $this->colors = $colors;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|UserProfile[]
+     */
+    public function getUserProfileFavs(): Collection
+    {
+        return $this->userProfileFavs;
+    }
+
+    public function addUserProfileFav(UserProfile $userProfileFav): self
+    {
+        if (!$this->userProfileFavs->contains($userProfileFav)) {
+            $this->userProfileFavs[] = $userProfileFav;
+        }
+
+        return $this;
+    }
+
+    public function removeUserProfileFav(UserProfile $userProfileFav): self
+    {
+        $this->userProfileFavs->removeElement($userProfileFav);
+
+        return $this;
+    }
+
+    public function getIsAvailable(): ?bool
+    {
+        return $this->isAvailable;
+    }
+
+    public function setIsAvailable(bool $isAvailable): self
+    {
+        $this->isAvailable = $isAvailable;
+
+        return $this;
+    }
 }

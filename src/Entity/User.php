@@ -3,13 +3,16 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Annotation\ApiSubresource;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 
 /**
  *  @ApiResource(
@@ -26,6 +29,9 @@ use Symfony\Component\Serializer\Annotation\Groups;
  *         "delete"={"access_control"="is_granted('ROLE_ADMIN')"},
  *         "put"={"access_control"="is_granted('ROLE_ADMIN') or (is_granted('ROLE_USER') and user.getId() == object.getId())"}
  *     }
+ * )
+ * @ApiFilter(
+ *     SearchFilter::class, properties={"email": "partial"}
  * )
  * @ORM\Entity(repositoryClass=UserRepository::class)
  */
@@ -55,15 +61,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var string The hashed password
      * @ORM\Column(type="string")
-     */
-    private $password;
-
-    /**
-     * @ORM\ManyToMany(targetEntity=Clothe::class, inversedBy="users")
-     * 
      * @Groups({"user"})
      */
-    private $favoriteClothes;
+    private $password;
 
     /**
      * @ORM\Column(type="string", length=255)
@@ -71,6 +71,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @Groups({"user"})
      */
     private $username;
+
+    /**
+     * @Groups({"user"})
+     */
+    private $name;
+
+    /**
+     * @ORM\OneToOne(targetEntity=UserProfile::class, inversedBy="user", cascade={"persist", "remove"})
+     * @ApiSubresource
+     * @Groups({"user"})
+     */
+    private $userProfile;
 
     public function __construct()
     {
@@ -158,30 +170,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // $this->plainPassword = null;
     }
 
-    /**
-     * @return Collection|Clothe[]
-     */
-    public function getFavoriteClothes(): Collection
-    {
-        return $this->favoriteClothes;
-    }
-
-    public function addFavoriteClothes(Clothe $favoriteClothes): self
-    {
-        if (!$this->favoriteClothes->contains($favoriteClothes)) {
-            $this->favoriteClothes[] = $favoriteClothes;
-        }
-
-        return $this;
-    }
-
-    public function removeFavoriteClothes(Clothe $favoriteClothes): self
-    {
-        $this->favoriteClothes->removeElement($favoriteClothes);
-
-        return $this;
-    }
-
     public function getUsername(): string
     {
         return (string) $this->email;
@@ -195,6 +183,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setUsername(string $username): self
     {
         $this->username = $username;
+
+        return $this;
+    }
+
+    public function getUserProfile(): ?UserProfile
+    {
+        return $this->userProfile;
+    }
+
+    public function setUserProfile(UserProfile $userProfile): self
+    {
+        $this->userProfile = $userProfile;
 
         return $this;
     }

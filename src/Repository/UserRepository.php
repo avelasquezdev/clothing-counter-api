@@ -53,6 +53,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
                     'username' => $user->getName(),
                     'id' => $user->getId(),
                     'roles' => $user->getRoles(),
+                    'profileId' => $user->getUserProfile()->getId()
                 ],
             ];
         } else {
