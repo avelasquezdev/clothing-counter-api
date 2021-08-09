@@ -78,7 +78,6 @@
             "require": "5.3.*"
         }
     },
-    "public-dir": "public_html",
     "require-dev": {
         "symfony/maker-bundle": "^1.33"
     }
